@@ -34,5 +34,19 @@ check "Политика UFW по умолчанию: deny incoming" "deny" "$(su
 echo "[3] Учётные записи"
 awk -F: ' $3>=1000 && $3<65534 {printf " %s (uid=%s)\n",$1,$3}' /etc/passwd
 
+echo "[4] Веб-сервер"
+
+# а) конфигурация nginx синтаксически корректна
+check "Конфигурация Nginx корректна" "0" "$(sudo nginx -t >/dev/null 2>&1; echo $?)"
+
+# б) сертификат истекает не ранее чем через 30 дней
+check "Сертификат действителен >30 дней" "0" "$(sudo openssl x509 -checkend 2592000 -noout -in /etc/ssl/certs/devops.crt >/dev/null 2>&1; echo $?)"
+
+# в) в каталоге ресурса нет файлов, доступных для записи всем
+check "Нет world-writable файлов в каталоге ресурса" "" "$(sudo find /var/www/devops-site -perm -o+w 2>/dev/null)"
+
+# г) права ключа TLS равны 600
+check "Права ключа TLS = 600" "600" "$(sudo stat -c '%a' /etc/ssl/private/devops.key)"
+
 echo "Пройдено: $PASS, не пройдено: $FAIL"
 [[ $FAIL -eq 0 ]] && exit 0 || exit 1

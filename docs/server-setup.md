@@ -59,3 +59,43 @@
 - **01-clean-install** — чистая установка Ubuntu Server 24.04 LTS (28.09.2026)
 - **02-keys-configured** — ключевая аутентификация настроена (28.09.2026) *(если создавал)*
 - **03-ssh-hardened** — SSH hardening завершён (28.09.2026)
+
+## 8. Веб-сервер
+
+### Пакет
+- Устанавливаемый пакет: `nginx` (nginx 1.24.0-2ubuntu7.18)
+- Служба: `nginx.service` (systemd)
+
+### Конфигурация ресурса
+- Путь к конфигурации: `/etc/nginx/sites-available/devops-site`
+- Активная ссылка: `/etc/nginx/sites-enabled/devops-site`
+- Стандартный ресурс: `/etc/nginx/sites-enabled/default` (удалён)
+
+### Каталог ресурса
+- Путь: `/var/www/devops-site`
+- Владелец: `devops:devops`
+- Права каталога: `755` (`drwxr-xr-x`)
+- Права файлов: `644` (`-rw-r--r--`)
+- Модель прав: владелец (`devops`) пишет, веб-сервер (`www-data`) читает
+
+### Сертификат и ключ TLS
+- Сертификат: `/etc/ssl/certs/devops.crt` (права `644`, владелец `root`)
+- Приватный ключ: `/etc/ssl/private/devops.key` (права `600`, владелец `root`)
+- Команда формирования сертификата:
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048
+-keyout /etc/ssl/private/devops.key
+-out /etc/ssl/certs/devops.crt
+-subj "/CN=devops.local"
+-addext "subjectAltName=DNS:devops.local"
+- Срок действия: 365 дней (1 год)
+- Тип сертификата: самоподписанный (subject = issuer = CN=devops.local)
+- SAN: `DNS:devops.local`
+
+### Служба Nginx
+- Процессы: master от `root`, worker от `www-data`
+- Порты: 80 (HTTP, перенаправление на HTTPS), 443 (HTTPS)
+- Перезагрузка конфигурации: `sudo systemctl reload nginx`
+
+### Логи
+- Журнал доступа: `/var/log/nginx/devops-site.access.log`
+- Журнал ошибок: `/var/log/nginx/devops-site.error.log`
