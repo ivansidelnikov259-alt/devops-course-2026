@@ -99,3 +99,52 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048
 ### Логи
 - Журнал доступа: `/var/log/nginx/devops-site.access.log`
 - Журнал ошибок: `/var/log/nginx/devops-site.error.log`
+
+
+## 9. Контейнеризация
+
+### Установка Docker Engine
+- Способ установки: официальный репозиторий `download.docker.com`
+- Установленные пакеты: `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, `docker-compose-plugin`
+- Версия Docker: `29.9.0`
+- Версия Compose: `v5.6.0`
+- ⚠️ Пакет `docker.io` из репозитория Ubuntu **не используется**
+
+### Группа docker
+- Пользователь `devops` добавлен в группу `docker` (`sudo usermod -aG docker devops`)
+- Запуск `docker` **без sudo**
+
+### Расположение проекта на сервере
+- Каталог проекта: `/home/devops/app/`
+- Файлы: `Dockerfile`, `docker-compose.yml`, `app.py`, `requirements.txt`, `.dockerignore`, `.env.example`
+- ⚠️ Файл `.env` — **НЕ в репозитории** (в `.gitignore`)
+
+### Файл .env
+- Расположение: `/home/devops/app/.env`
+- Права: **`600`** (только владелец `devops`)
+- Пароль: **случайный**, сгенерирован через `openssl rand -hex 16`
+- Содержимое (без значения пароля): `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_HOST=db`
+
+### Публикуемые порты и адреса
+- **Приложение (`app`):** `127.0.0.1:5000:5000` — только **localhost** (для Nginx)
+- **СУБД (`db`):** порт `5432` **НЕ публикуется** — доступен только внутри сети `backend`
+- ⚠️ **`0.0.0.0:5000` запрещён** — публикация только на loopback
+
+### Именованные тома
+- Имя тома: **`app_db_data`**
+- Точка монтирования в контейнере: `/var/lib/postgresql/data`
+- Расположение на хосте: `/var/lib/docker/volumes/app_db_data/_data/`
+- ⚠️ Сохраняется при `docker compose down` (без `-v`)
+- ⚠️ Удаляется при `docker compose down -v`
+
+### Конфигурация обратного прокси-сервера
+- Файл: `/etc/nginx/sites-available/devops-site`
+- Секция проксирования:
+  ```nginx
+  location /app/ {
+      proxy_pass http://127.0.0.1:5000/;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+  }
