@@ -47,6 +47,20 @@ check "Нет world-writable файлов в каталоге ресурса" ""
 
 # г) права ключа TLS равны 600
 check "Права ключа TLS = 600" "600" "$(sudo stat -c '%a' /etc/ssl/private/devops.key)"
+echo "[5] Контейнеризация"
+
+# а) служба docker активна
+check "Служба Docker активна" "active" "$(systemctl is-active docker)"
+
+# б) контейнер СУБД в состоянии healthy
+check "Контейнер БД в состоянии healthy" "healthy" "$(docker inspect -f '{{.State.Health.Status}}' app-db-1 2>/dev/null)"
+
+# в) порты 5000 и 5432 не прослушиваются нигде, кроме 127.0.0.1
+check "Порт 5000 только на 127.0.0.1" "" "$(ss -tln | awk '/:5000/ && !/127.0.0.1:5000/' | grep -v '127.0.0.1:5000')"
+check "Порт 5432 не прослушивается" "" "$(ss -tln | awk '/:5432/' )"
+
+# г) права файла .env равны 600
+check "Права .env = 600" "600" "$(stat -c '%a' ~/app/.env)"
 
 echo "Пройдено: $PASS, не пройдено: $FAIL"
 [[ $FAIL -eq 0 ]] && exit 0 || exit 1
