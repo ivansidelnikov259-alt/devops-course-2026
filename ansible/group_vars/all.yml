@@ -1,0 +1,5 @@
+app_image: "ghcr.io/ivansidelnikov259-alt/devops-ci-app"
+app_tag: "3ed8aca67a0cd6e8a1949afd3c5b8e90aea3d9ec"
+app_container_name: "devops-ci-app"
+app_host_port: 5000
+app_internal_port: 5000

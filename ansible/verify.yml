@@ -1,0 +1,59 @@
+---
+- name: Verify deployed configuration
+  hosts: vm
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check SSH effective configuration
+      ansible.builtin.command: sshd -T
+      register: sshd_effective
+      changed_when: false
+
+    - name: Assert password authentication is disabled
+      ansible.builtin.assert:
+        that:
+          - "'passwordauthentication no' in sshd_effective.stdout"
+          - "'permitrootlogin no' in sshd_effective.stdout"
+
+    - name: Read container facts
+      community.docker.docker_container_info:
+        name: "{{ app_container_name }}"
+      register: container_info
+
+    - name: Assert container is running
+      ansible.builtin.assert:
+        that:
+          - container_info.container.State.Running
+
+    - name: Check direct application health
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_host_port }}/health"
+        return_content: true
+      register: app_health
+
+    - name: Assert health endpoint returns ok
+      ansible.builtin.assert:
+        that:
+          - app_health.status == 200
+          - app_health.json.status == "ok"
+
+    - name: Check Nginx is active
+      ansible.builtin.command: systemctl is-active nginx
+      register: nginx_status
+      changed_when: false
+
+    - name: Assert Nginx is running
+      ansible.builtin.assert:
+        that:
+          - nginx_status.stdout == "active"
+
+    - name: Check Docker is active
+      ansible.builtin.command: systemctl is-active docker
+      register: docker_status
+      changed_when: false
+
+    - name: Assert Docker is running
+      ansible.builtin.assert:
+        that:
+          - docker_status.stdout == "active"
